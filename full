@@ -1,0 +1,563 @@
+//@version=6
+strategy("Multi-TF FVGs Simplificado (Formato Final Definitivo)", shorttitle="FVG Strict BPR", overlay=true)
+
+// === GRUPO GENERAL ===
+group_general = "Ajustes Generales"
+nItemsToDisplay = input.int(15, "Cantidad Máxima de Items (FVG/BPR) por TF (1H, 15M, 5M)", minval=1, maxval=30, group=group_general)
+
+// === AJUSTES POR TIMEFRAME (Activación, Conteo y Extensión) ===
+group_1M_settings = "Ajustes 1 Minuto (Activación, Conteo y Extensión)"
+enable_1M_FVG = input.bool(true, "Activar FVG 1M", group=group_1M_settings, inline="tf_1m_act")
+nItemsToDisplay_1M = input.int(4, "Cantidad Máxima de FVGs 1M", minval=1, maxval=30, group=group_1M_settings, inline="tf_1m_max")
+input_extend_bars_1M_bull = input.int(15, "Ext. Barras Alcista 1M (Gráf. Actual)", minval=0, group=group_1M_settings, inline="ext_1Mb_style")
+input_extend_bars_1M_bear = input.int(15, "Ext. Barras Bajista 1M (Gráf. Actual)", minval=0, group=group_1M_settings, inline="ext_1Mb_style")
+
+group_5M_settings = "Ajustes 5 Minutos (Activación y Extensión)"
+enable_5M_FVG = input.bool(true, "Activar FVG/BPR 5M", group=group_5M_settings, inline="tf_5m_act")
+enable_BPRs_5M = input.bool(true, "Activar BPRs 5M", group=group_5M_settings, inline="tf_5m_bpr")
+input_extend_bars_5M_bull = input.int(10, "Ext. Barras Alcista (Gráf. Actual)", minval=0, group=group_5M_settings, inline="ext_5Mb")
+input_extend_bars_5M_bear = input.int(9, "Ext. Barras Bajista (Gráf. Actual)", minval=0, group=group_5M_settings, inline="ext_5Mb")
+
+group_15M_settings = "Ajustes 15 Minutos (Activación y Extensión)"
+enable_15M_FVG = input.bool(true, "Activar FVG/BPR 15M", group=group_15M_settings, inline="tf_15m_act")
+enable_BPRs_15M = input.bool(true, "Activar BPRs 15M", group=group_15M_settings, inline="tf_15m_bpr")
+input_extend_bars_15M_bull = input.int(30, "Ext. Barras Alcista (Gráf. Actual)", minval=0, group=group_15M_settings, inline="ext_15Mb")
+input_extend_bars_15M_bear = input.int(28, "Ext. Barras Bajista (Gráf. Actual)", minval=0, group=group_15M_settings, inline="ext_15Mb")
+
+group_1H_settings = "Ajustes 1 Hora (Activación y Extensión)"
+enable_1H_FVG = input.bool(true, "Activar FVG/BPR 1H", group=group_1H_settings, inline="tf_1h_act")
+enable_BPRs_1H = input.bool(true, "Activar BPRs 1H", group=group_1H_settings, inline="tf_1h_bpr")
+input_extend_bars_1H_bull = input.int(60, "Ext. Barras Alcista (Gráf. Actual)", minval=0, group=group_1H_settings, inline="ext_1Hb")
+input_extend_bars_1H_bear = input.int(56, "Ext. Barras Bajista (Gráf. Actual)", minval=0, group=group_1H_settings, inline="ext_1Hb")
+
+// === PESTAÑA DE ESTILO ===
+group_style_tab = "Configuración de Estilo"
+
+group_style_colors = group_style_tab + "/Colores Principales"
+universalBullColor = input.color(color.new(color.white, 95), title="Color FVG Alcista (Global)", group=group_style_colors)
+universalBearColor = input.color(color.new(color.red, 95), title="Color FVG Bajista (Global)", group=group_style_colors)
+input_bpr_bull_color = input.color(color.new(color.green, 85), title="Color BPR (Origen Alcista)", group=group_style_colors)
+input_bpr_bear_color = input.color(color.new(color.red, 85), title="Color BPR (Origen Bajista)", group=group_style_colors)
+
+group_style_labels_1M = group_style_tab + "/Etiquetas 1M"
+input_label_text_1M_bull = input.string("BISI", "Texto FVG Alcista 1M", group=group_style_labels_1M, inline="text_fvg_1M_bull_style")
+input_label_text_1M_bear = input.string("SIBI", "Texto FVG Bajista 1M", group=group_style_labels_1M, inline="text_fvg_1M_bear_style")
+input_label_position_1M = input.string("Derecha", "Posición Et. 1M", options=["Izquierda", "Derecha", "Centro"], group=group_style_labels_1M, inline="pos_1M_style")
+input_label_size_1M = input.string("Tiny", "Tamaño Et. 1M", options=["Tiny", "Small", "Normal", "Large", "Huge"], group=group_style_labels_1M, inline="size_1M_style")
+
+group_style_labels_5M = group_style_tab + "/Etiquetas 5M"
+input_label_text_5M = input.string("5 min", "Texto Etiqueta FVG", group=group_style_labels_5M, inline="text_fvg_5M_style")
+input_bpr_label_text_5M = input.string("BPR 5m", "Texto Etiqueta BPR", group=group_style_labels_5M, inline="text_bpr_5M_style")
+input_label_position_5M = input.string("Derecha", "Posición Et.", options=["Izquierda", "Derecha", "Centro"], group=group_style_labels_5M, inline="pos_5M_style")
+input_label_size_5M = input.string("Tiny", "Tamaño Et.", options=["Tiny", "Small", "Normal", "Large", "Huge"], group=group_style_labels_5M, inline="size_5M_style")
+
+group_style_labels_15M = group_style_tab + "/Etiquetas 15M"
+input_label_text_15M = input.string("15 min", "Texto Etiqueta FVG", group=group_style_labels_15M, inline="text_fvg_15M_style")
+input_bpr_label_text_15M = input.string("BPR 15m", "Texto Etiqueta BPR", group=group_style_labels_15M, inline="text_bpr_15M_style")
+input_label_position_15M = input.string("Derecha", "Posición Et.", options=["Izquierda", "Derecha", "Centro"], group=group_style_labels_15M, inline="pos_15M_style")
+input_label_size_15M = input.string("Normal", "Tamaño Et.", options=["Tiny", "Small", "Normal", "Large", "Huge"], group=group_style_labels_15M, inline="size_15M_style")
+
+group_style_labels_1H = group_style_tab + "/Etiquetas 1H"
+input_label_text_1H = input.string("1H", "Texto Etiqueta FVG", group=group_style_labels_1H, inline="text_fvg_1H_style")
+input_bpr_label_text_1H = input.string("BPR 1H", "Texto Etiqueta BPR", group=group_style_labels_1H, inline="text_bpr_1H_style")
+input_label_position_1H = input.string("Derecha", "Posición Et.", options=["Izquierda", "Derecha", "Centro"], group=group_style_labels_1H, inline="pos_1H_style")
+input_label_size_1H = input.string("Normal", "Tamaño Et.", options=["Tiny", "Small", "Normal", "Large", "Huge"], group=group_style_labels_1H, inline="size_1H_style")
+
+group_style_sidelines = group_style_tab + "/Líneas Laterales"
+enable_side_line = input.bool(true, "Activar Línea Lateral", group=group_style_sidelines, inline="sl_enable_style")
+input_sl_color_1M_bull = input.color(color.new(color.aqua, 30), "Color Línea 1M Alcista", group=group_style_sidelines, inline="slc_1m_style")
+input_sl_color_1M_bear = input.color(color.new(color.fuchsia, 30), "Color Línea 1M Bajista", group=group_style_sidelines, inline="slc_1m_style")
+input_sl_color_5M_bull = input.color(color.new(color.red, 0), "Color Línea 5M Alcista", group=group_style_sidelines, inline="slc_5m_style")
+input_sl_color_5M_bear = input.color(color.new(#8B0000, 0), "Color Línea 5M Bajista", group=group_style_sidelines, inline="slc_5m_style")
+input_sl_color_15M_bull = input.color(color.new(color.blue, 0), "Color Línea 15M Alcista", group=group_style_sidelines, inline="slc_15m_style")
+input_sl_color_15M_bear = input.color(color.new(color.navy, 0), "Color Línea 15M Bajista", group=group_style_sidelines, inline="slc_15m_style")
+input_sl_color_1H_bull = input.color(color.new(color.yellow, 0), "Color Línea 1H Alcista", group=group_style_sidelines, inline="slc_1h_style")
+input_sl_color_1H_bear = input.color(color.new(color.olive, 0), "Color Línea 1H Bajista", group=group_style_sidelines, inline="slc_1h_style")
+side_line_width = input.int(2, "Ancho Línea Global", minval=1, maxval=5, group=group_style_sidelines, inline="sl_width_style")
+side_line_style = input.string(line.style_solid, "Estilo Línea Global", options=[line.style_solid, line.style_dashed, line.style_dotted], group=group_style_sidelines, inline="sl_style_style")
+
+string LEADING_SPACES = "               "
+
+var LATCHED_g_fvgTops_1M = array.new_float(0)
+var LATCHED_g_fvgBottoms_1M = array.new_float(0)
+var LATCHED_g_fvgTimes_1M = array.new_int(0)
+var LATCHED_g_fvgTypes_1M = array.new_int(0)
+
+var LATCHED_g_fvgTops_5M = array.new_float(0)
+var LATCHED_g_fvgBottoms_5M = array.new_float(0)
+var LATCHED_g_fvgTimes_5M = array.new_int(0)
+var LATCHED_g_fvgTypes_5M = array.new_int(0)
+var LATCHED_g_bprTops_5M = array.new_float(0)
+var LATCHED_g_bprBottoms_5M = array.new_float(0)
+var LATCHED_g_bprTimes_5M = array.new_int(0)
+var LATCHED_g_bprTypes_5M = array.new_int(0)
+
+var LATCHED_g_fvgTops_15M = array.new_float(0)
+var LATCHED_g_fvgBottoms_15M = array.new_float(0)
+var LATCHED_g_fvgTimes_15M = array.new_int(0)
+var LATCHED_g_fvgTypes_15M = array.new_int(0)
+var LATCHED_g_bprTops_15M = array.new_float(0)
+var LATCHED_g_bprBottoms_15M = array.new_float(0)
+var LATCHED_g_bprTimes_15M = array.new_int(0)
+var LATCHED_g_bprTypes_15M = array.new_int(0)
+
+var LATCHED_g_fvgTops_1H = array.new_float(0)
+var LATCHED_g_fvgBottoms_1H = array.new_float(0)
+var LATCHED_g_fvgTimes_1H = array.new_int(0)
+var LATCHED_g_fvgTypes_1H = array.new_int(0)
+var LATCHED_g_bprTops_1H = array.new_float(0)
+var LATCHED_g_bprBottoms_1H = array.new_float(0)
+var LATCHED_g_bprTimes_1H = array.new_int(0)
+var LATCHED_g_bprTypes_1H = array.new_int(0)
+
+var int LATCHED_lastOverallUpdateTime = 0
+
+f_manage_FVGs_and_BPRs(string tf_arg_unused) => 
+    var fvg_Tops_internal = array.new_float(0)
+    var fvg_Bottoms_internal = array.new_float(0)
+    var fvg_Times_internal = array.new_int(0)
+    var fvg_Types_internal = array.new_int(0)
+    var bpr_Tops_internal = array.new_float(0)
+    var bpr_Bottoms_internal = array.new_float(0)
+    var bpr_Times_internal = array.new_int(0)
+    var bpr_Types_internal = array.new_int(0)
+
+    if array.size(fvg_Times_internal) > 0 
+        for i = array.size(fvg_Times_internal) - 1 to 0
+            current_fvg_bottom_price = array.get(fvg_Bottoms_internal, i)
+            current_fvg_top_price = array.get(fvg_Tops_internal, i)
+            current_fvg_type = array.get(fvg_Types_internal, i)
+            isInvalidated = false
+            if current_fvg_type == 1 and close <= current_fvg_bottom_price
+                isInvalidated := true
+            else if current_fvg_type == -1 and close >= current_fvg_top_price
+                isInvalidated := true
+            if isInvalidated
+                array.remove(fvg_Tops_internal, i)
+                array.remove(fvg_Bottoms_internal, i)
+                array.remove(fvg_Times_internal, i)
+                array.remove(fvg_Types_internal, i)
+
+    isNewBullishFVG = low > high[2]
+    isNewBearishFVG = high < low[2]
+    
+    if isNewBullishFVG
+        newFvgTop = low
+        newFvgBottom = high[2]
+        newFvgTime = time
+        array.push(fvg_Tops_internal, newFvgTop)
+        array.push(fvg_Bottoms_internal, newFvgBottom)
+        array.push(fvg_Times_internal, newFvgTime)
+        array.push(fvg_Types_internal, 1)
+        
+        if array.size(fvg_Times_internal) > 1 
+            for j = array.size(fvg_Times_internal) - 2 to 0 
+                if array.get(fvg_Types_internal, j) == -1 
+                    oldFvgTop = array.get(fvg_Tops_internal, j)
+                    oldFvgBottom = array.get(fvg_Bottoms_internal, j)
+                    if newFvgBottom <= oldFvgBottom and newFvgTop >= oldFvgTop
+                        array.push(bpr_Tops_internal, oldFvgTop)
+                        array.push(bpr_Bottoms_internal, oldFvgBottom)
+                        array.push(bpr_Times_internal, newFvgTime)
+                        array.push(bpr_Types_internal, 1) 
+                        array.remove(fvg_Tops_internal, j)
+                        array.remove(fvg_Bottoms_internal, j)
+                        array.remove(fvg_Times_internal, j)
+                        array.remove(fvg_Types_internal, j)
+                        break 
+
+    else if isNewBearishFVG
+        newFvgTop = low[2]
+        newFvgBottom = high
+        newFvgTime = time
+        array.push(fvg_Tops_internal, newFvgTop)
+        array.push(fvg_Bottoms_internal, newFvgBottom)
+        array.push(fvg_Times_internal, newFvgTime)
+        array.push(fvg_Types_internal, -1)
+
+        if array.size(fvg_Times_internal) > 1 
+            for j = array.size(fvg_Times_internal) - 2 to 0 
+                if array.get(fvg_Types_internal, j) == 1 
+                    oldFvgTop = array.get(fvg_Tops_internal, j)
+                    oldFvgBottom = array.get(fvg_Bottoms_internal, j)
+                    if newFvgBottom <= oldFvgBottom and newFvgTop >= oldFvgTop
+                        array.push(bpr_Tops_internal, oldFvgTop)
+                        array.push(bpr_Bottoms_internal, oldFvgBottom)
+                        array.push(bpr_Times_internal, newFvgTime)
+                        array.push(bpr_Types_internal, -1) 
+                        array.remove(fvg_Tops_internal, j)
+                        array.remove(fvg_Bottoms_internal, j)
+                        array.remove(fvg_Times_internal, j)
+                        array.remove(fvg_Types_internal, j)
+                        break 
+                    
+    [array.copy(fvg_Tops_internal), array.copy(fvg_Bottoms_internal), array.copy(fvg_Times_internal), array.copy(fvg_Types_internal), array.copy(bpr_Tops_internal), array.copy(bpr_Bottoms_internal), array.copy(bpr_Times_internal), array.copy(bpr_Types_internal)]
+
+var tops_1M_temp = array.new_float(0) 
+var bottoms_1M_temp = array.new_float(0)
+var times_1M_temp = array.new_int(0)
+var types_1M_temp = array.new_int(0)
+
+var tops_5M_temp = array.new_float(0)
+var bottoms_5M_temp = array.new_float(0)
+var times_5M_temp = array.new_int(0)
+var types_5M_temp = array.new_int(0)
+var bpr_tops_5M_temp = array.new_float(0)
+var bpr_bottoms_5M_temp = array.new_float(0)
+var bpr_times_5M_temp = array.new_int(0)
+var bpr_types_5M_temp = array.new_int(0)
+
+var tops_15M_temp = array.new_float(0)
+var bottoms_15M_temp = array.new_float(0)
+var times_15M_temp = array.new_int(0)
+var types_15M_temp = array.new_int(0)
+var bpr_tops_15M_temp = array.new_float(0)
+var bpr_bottoms_15M_temp = array.new_float(0)
+var bpr_times_15M_temp = array.new_int(0)
+var bpr_types_15M_temp = array.new_int(0)
+
+var tops_1H_temp = array.new_float(0)
+var bottoms_1H_temp = array.new_float(0)
+var times_1H_temp = array.new_int(0)
+var types_1H_temp = array.new_int(0)
+var bpr_tops_1H_temp = array.new_float(0)
+var bpr_bottoms_1H_temp = array.new_float(0)
+var bpr_times_1H_temp = array.new_int(0)
+var bpr_types_1H_temp = array.new_int(0)
+
+if enable_1M_FVG
+    [t_1M,b_1M,ts_1M,ty_1M,_,_,_,_] = request.security(syminfo.tickerid, "1", f_manage_FVGs_and_BPRs("1M"), lookahead=barmerge.lookahead_on)
+    if not na(ts_1M) 
+        tops_1M_temp := t_1M
+        bottoms_1M_temp := b_1M
+        times_1M_temp := ts_1M
+        types_1M_temp := ty_1M
+if enable_5M_FVG
+    [t_5M,b_5M,ts_5M,ty_5M,bpr_t_5M,bpr_b_5M,bpr_ts_5M,bpr_ty_5M] = request.security(syminfo.tickerid, "5", f_manage_FVGs_and_BPRs("5M"), lookahead=barmerge.lookahead_on)
+    if not na(ts_5M)
+        tops_5M_temp := t_5M
+        bottoms_5M_temp := b_5M
+        times_5M_temp := ts_5M
+        types_5M_temp := ty_5M
+    if not na(bpr_ts_5M) and enable_BPRs_5M
+        bpr_tops_5M_temp := bpr_t_5M
+        bpr_bottoms_5M_temp := bpr_b_5M
+        bpr_times_5M_temp := bpr_ts_5M
+        bpr_types_5M_temp := bpr_ty_5M
+if enable_15M_FVG
+    [t_15M,b_15M,ts_15M,ty_15M,bpr_t_15M,bpr_b_15M,bpr_ts_15M,bpr_ty_15M] = request.security(syminfo.tickerid, "15", f_manage_FVGs_and_BPRs("15M"), lookahead=barmerge.lookahead_on)
+    if not na(ts_15M)
+        tops_15M_temp := t_15M
+        bottoms_15M_temp := b_15M
+        times_15M_temp := ts_15M
+        types_15M_temp := ty_15M
+    if not na(bpr_ts_15M) and enable_BPRs_15M
+        bpr_tops_15M_temp := bpr_t_15M
+        bpr_bottoms_15M_temp := bpr_b_15M
+        bpr_times_15M_temp := bpr_ts_15M
+        bpr_types_15M_temp := bpr_ty_15M
+if enable_1H_FVG
+    [t_1H,b_1H,ts_1H,ty_1H,bpr_t_1H,bpr_b_1H,bpr_ts_1H,bpr_ty_1H] = request.security(syminfo.tickerid, "60", f_manage_FVGs_and_BPRs("1H"), lookahead=barmerge.lookahead_on)
+    if not na(ts_1H) 
+        tops_1H_temp := t_1H
+        bottoms_1H_temp := b_1H
+        times_1H_temp := ts_1H
+        types_1H_temp := ty_1H
+    if not na(bpr_ts_1H) and enable_BPRs_1H
+        bpr_tops_1H_temp := bpr_t_1H
+        bpr_bottoms_1H_temp := bpr_b_1H
+        bpr_times_1H_temp := bpr_ts_1H
+        bpr_types_1H_temp := bpr_ty_1H
+
+bool timeForOverallLatch = false
+if barstate.isrealtime
+    if LATCHED_lastOverallUpdateTime == 0 or timenow >= LATCHED_lastOverallUpdateTime + (1 * 60 * 1000) 
+        timeForOverallLatch := true
+else 
+    timeForOverallLatch := true 
+
+if timeForOverallLatch
+    if enable_1M_FVG
+        LATCHED_g_fvgTops_1M    := array.copy(tops_1M_temp)
+        LATCHED_g_fvgBottoms_1M := array.copy(bottoms_1M_temp)
+        LATCHED_g_fvgTimes_1M   := array.copy(times_1M_temp)
+        LATCHED_g_fvgTypes_1M   := array.copy(types_1M_temp)
+    else
+        array.clear(LATCHED_g_fvgTops_1M)
+        array.clear(LATCHED_g_fvgBottoms_1M)
+        array.clear(LATCHED_g_fvgTimes_1M)
+        array.clear(LATCHED_g_fvgTypes_1M)
+        
+    if enable_5M_FVG
+        LATCHED_g_fvgTops_5M    := array.copy(tops_5M_temp)
+        LATCHED_g_fvgBottoms_5M := array.copy(bottoms_5M_temp)
+        LATCHED_g_fvgTimes_5M   := array.copy(times_5M_temp)
+        LATCHED_g_fvgTypes_5M   := array.copy(types_5M_temp)
+        if enable_BPRs_5M
+            LATCHED_g_bprTops_5M    := array.copy(bpr_tops_5M_temp)
+            LATCHED_g_bprBottoms_5M := array.copy(bpr_bottoms_5M_temp)
+            LATCHED_g_bprTimes_5M   := array.copy(bpr_times_5M_temp)
+            LATCHED_g_bprTypes_5M   := array.copy(bpr_types_5M_temp)
+    else
+        array.clear(LATCHED_g_fvgTops_5M)
+        array.clear(LATCHED_g_fvgBottoms_5M)
+        array.clear(LATCHED_g_fvgTimes_5M)
+        array.clear(LATCHED_g_fvgTypes_5M)
+        array.clear(LATCHED_g_bprTops_5M)
+        array.clear(LATCHED_g_bprBottoms_5M)
+        array.clear(LATCHED_g_bprTimes_5M)
+        array.clear(LATCHED_g_bprTypes_5M)
+
+    if enable_15M_FVG
+        LATCHED_g_fvgTops_15M    := array.copy(tops_15M_temp)
+        LATCHED_g_fvgBottoms_15M := array.copy(bottoms_15M_temp)
+        LATCHED_g_fvgTimes_15M   := array.copy(times_15M_temp)
+        LATCHED_g_fvgTypes_15M   := array.copy(types_15M_temp)
+        if enable_BPRs_15M
+            LATCHED_g_bprTops_15M    := array.copy(bpr_tops_15M_temp)
+            LATCHED_g_bprBottoms_15M := array.copy(bpr_bottoms_15M_temp)
+            LATCHED_g_bprTimes_15M   := array.copy(bpr_times_15M_temp)
+            LATCHED_g_bprTypes_15M   := array.copy(bpr_types_15M_temp)
+    else
+        array.clear(LATCHED_g_fvgTops_15M)
+        array.clear(LATCHED_g_fvgBottoms_15M)
+        array.clear(LATCHED_g_fvgTimes_15M)
+        array.clear(LATCHED_g_fvgTypes_15M)
+        array.clear(LATCHED_g_bprTops_15M)
+        array.clear(LATCHED_g_bprBottoms_15M)
+        array.clear(LATCHED_g_bprTimes_15M)
+        array.clear(LATCHED_g_bprTypes_15M)
+
+    if enable_1H_FVG
+        LATCHED_g_fvgTops_1H    := array.copy(tops_1H_temp)
+        LATCHED_g_fvgBottoms_1H := array.copy(bottoms_1H_temp)
+        LATCHED_g_fvgTimes_1H   := array.copy(times_1H_temp)
+        LATCHED_g_fvgTypes_1H   := array.copy(types_1H_temp)
+        if enable_BPRs_1H
+            LATCHED_g_bprTops_1H    := array.copy(bpr_tops_1H_temp)
+            LATCHED_g_bprBottoms_1H := array.copy(bpr_bottoms_1H_temp)
+            LATCHED_g_bprTimes_1H   := array.copy(bpr_times_1H_temp)
+            LATCHED_g_bprTypes_1H   := array.copy(bpr_types_1H_temp)
+    else
+        array.clear(LATCHED_g_fvgTops_1H)
+        array.clear(LATCHED_g_fvgBottoms_1H)
+        array.clear(LATCHED_g_fvgTimes_1H)
+        array.clear(LATCHED_g_fvgTypes_1H)
+        array.clear(LATCHED_g_bprTops_1H)
+        array.clear(LATCHED_g_bprBottoms_1H)
+        array.clear(LATCHED_g_bprTimes_1H)
+        array.clear(LATCHED_g_bprTypes_1H)
+        
+    if barstate.isrealtime
+        LATCHED_lastOverallUpdateTime := timenow
+
+var box[] g_allBoxes = array.new_box(0)
+var label[] g_allLabels = array.new_label(0) 
+var line[] g_allSideLines = array.new_line(0) 
+
+drawFVGSet(array<float> tops, array<float> bottoms, array<int> times, array<int> types, color bullClr, color bearClr, string tf_string_for_box_calc, int display_count_limit, string fvgIdentifierText) =>
+    int num_available = array.size(tops) 
+    int fvgs_to_plot_count = math.min(num_available, display_count_limit)
+    if fvgs_to_plot_count > 0
+        for i = 0 to fvgs_to_plot_count - 1
+            int dataIndex = num_available - fvgs_to_plot_count + i
+            if dataIndex < array.size(tops) and dataIndex < array.size(bottoms) and dataIndex < array.size(times) and dataIndex < array.size(types)
+                float fvg_top_price    = array.get(tops, dataIndex)
+                float fvg_bottom_price = array.get(bottoms, dataIndex)
+                int   fvg_form_time    = array.get(times, dataIndex)
+                int   fvg_type         = array.get(types, dataIndex)
+                color item_color = fvg_type == 1 ? bullClr : bearClr
+                int box_left_time = fvg_form_time - 2 * timeframe.in_seconds(tf_string_for_box_calc) * 1000
+                
+                int current_chart_bar_duration_ms = timeframe.in_seconds(timeframe.period) * 1000
+                current_chart_bar_duration_ms := current_chart_bar_duration_ms == 0 ? 60000 : current_chart_bar_duration_ms 
+                
+                int actual_bars_to_extend = 0
+                if tf_string_for_box_calc == "1"
+                    actual_bars_to_extend := fvg_type == 1 ? input_extend_bars_1M_bull : input_extend_bars_1M_bear
+                else if tf_string_for_box_calc == "5"
+                    actual_bars_to_extend := fvg_type == 1 ? input_extend_bars_5M_bull : input_extend_bars_5M_bear
+                else if tf_string_for_box_calc == "15"
+                    actual_bars_to_extend := fvg_type == 1 ? input_extend_bars_15M_bull : input_extend_bars_15M_bear
+                else if tf_string_for_box_calc == "60"
+                    actual_bars_to_extend := fvg_type == 1 ? input_extend_bars_1H_bull : input_extend_bars_1H_bear
+                
+                int base_time_for_extension = barstate.islast ? timenow : time
+                int dynamic_right_edge = base_time_for_extension + actual_bars_to_extend * current_chart_bar_duration_ms
+                
+                if box_left_time < dynamic_right_edge
+                    newBox = box.new(left = box_left_time, top = fvg_top_price, right = dynamic_right_edge, bottom = fvg_bottom_price, border_color = na, bgcolor = item_color, xloc = xloc.bar_time, extend = extend.none)
+                    array.push(g_allBoxes, newBox)
+
+                    if enable_side_line
+                        int line_x_coord = dynamic_right_edge 
+                        color actual_sl_color = color.gray 
+                        if str.contains(fvgIdentifierText, "1M")
+                            actual_sl_color := fvg_type == 1 ? input_sl_color_1M_bull : input_sl_color_1M_bear
+                        else if str.contains(fvgIdentifierText, "5M") 
+                            actual_sl_color := fvg_type == 1 ? input_sl_color_5M_bull : input_sl_color_5M_bear
+                        else if str.contains(fvgIdentifierText, "15M") 
+                            actual_sl_color := fvg_type == 1 ? input_sl_color_15M_bull : input_sl_color_15M_bear
+                        else if str.contains(fvgIdentifierText, "1H") 
+                            actual_sl_color := fvg_type == 1 ? input_sl_color_1H_bull : input_sl_color_1H_bear
+                        
+                        newLine = line.new(x1 = line_x_coord, y1 = fvg_bottom_price, x2 = line_x_coord, y2 = fvg_top_price, xloc = xloc.bar_time, extend = extend.none, color = actual_sl_color, style = side_line_style, width = side_line_width)
+                        array.push(g_allSideLines, newLine)
+
+                    string current_label_text_input = ""
+                    string current_pos_str_input = "" 
+                    string current_size_str_input = ""
+
+                    if str.contains(fvgIdentifierText, "1M")
+                        current_label_text_input := fvg_type == 1 ? input_label_text_1M_bull : input_label_text_1M_bear
+                        current_pos_str_input := input_label_position_1M
+                        current_size_str_input := input_label_size_1M
+                    else if str.contains(fvgIdentifierText, "5M")
+                        current_label_text_input := input_label_text_5M
+                        current_pos_str_input := input_label_position_5M
+                        current_size_str_input := input_label_size_5M
+                    else if str.contains(fvgIdentifierText, "15M")
+                        current_label_text_input := input_label_text_15M
+                        current_pos_str_input := input_label_position_15M
+                        current_size_str_input := input_label_size_15M
+                    else if str.contains(fvgIdentifierText, "1H")
+                        current_label_text_input := input_label_text_1H
+                        current_pos_str_input := input_label_position_1H
+                        current_size_str_input := input_label_size_1H
+                    
+                    int actual_label_x = dynamic_right_edge 
+                    string actual_text_align = text.align_right
+                    if current_pos_str_input == "Izquierda"
+                        actual_label_x := box_left_time
+                        actual_text_align := text.align_left
+                    else if current_pos_str_input == "Derecha"
+                        actual_label_x := dynamic_right_edge
+                        actual_text_align := text.align_right
+                    else if current_pos_str_input == "Centro"
+                        actual_label_x := box_left_time + (dynamic_right_edge - box_left_time) / 2
+                        actual_text_align := text.align_center
+                    
+                    string actual_label_size = size.tiny 
+                    if current_size_str_input == "Small"
+                        actual_label_size := size.small 
+                    else if current_size_str_input == "Normal"
+                        actual_label_size := size.normal 
+                    else if current_size_str_input == "Large"
+                        actual_label_size := size.large 
+                    else if current_size_str_input == "Huge"
+                        actual_label_size := size.huge
+                    
+                    string label_to_display = LEADING_SPACES + current_label_text_input
+                    newLabel = label.new(x = actual_label_x, y = (fvg_top_price + fvg_bottom_price) / 2, text = label_to_display, xloc = xloc.bar_time, yloc = yloc.price, color = color(na), style = label.style_none, textcolor = color.new(color.white, 0), size = actual_label_size, textalign = actual_text_align)
+                    array.push(g_allLabels, newLabel)
+
+drawBPRSet(array<float> tops, array<float> bottoms, array<int> times, array<int> types, color bprBullClrIn, color bprBearClrIn, string tf_string_for_box_calc, int display_count_limit, string bprIdentifierOriginTF) =>
+    int num_available = array.size(tops)
+    int items_to_plot = math.min(num_available, display_count_limit)
+    if items_to_plot > 0
+        for i = 0 to items_to_plot - 1
+            int dataIndex = num_available - items_to_plot + i
+            if dataIndex < array.size(tops) and dataIndex < array.size(bottoms) and dataIndex < array.size(times) and dataIndex < array.size(types)
+                float item_top = array.get(tops, dataIndex)
+                float item_bottom = array.get(bottoms, dataIndex)
+                int item_time = array.get(times, dataIndex)
+                int item_type = array.get(types, dataIndex) 
+                color actual_item_color = item_type == 1 ? bprBullClrIn : bprBearClrIn
+                int box_left_time = item_time - 2 * timeframe.in_seconds(tf_string_for_box_calc) * 1000
+
+                int current_chart_bar_duration_ms = timeframe.in_seconds(timeframe.period) * 1000
+                current_chart_bar_duration_ms := current_chart_bar_duration_ms == 0 ? 60000 : current_chart_bar_duration_ms
+
+                int actual_bars_to_extend = 0
+                if tf_string_for_box_calc == "5" 
+                    actual_bars_to_extend := item_type == 1 ? input_extend_bars_5M_bull : input_extend_bars_5M_bear
+                else if tf_string_for_box_calc == "15"
+                    actual_bars_to_extend := item_type == 1 ? input_extend_bars_15M_bull : input_extend_bars_15M_bear
+                else if tf_string_for_box_calc == "60"
+                    actual_bars_to_extend := item_type == 1 ? input_extend_bars_1H_bull : input_extend_bars_1H_bear
+                
+                int base_time_for_extension = barstate.islast ? timenow : time
+                int dynamic_right_edge = base_time_for_extension + actual_bars_to_extend * current_chart_bar_duration_ms
+                
+                if box_left_time < dynamic_right_edge
+                    newBprBox = box.new(left=box_left_time, top=item_top, right=dynamic_right_edge, bottom=item_bottom, border_color=na, bgcolor=actual_item_color, xloc=xloc.bar_time, extend=extend.none)
+                    array.push(g_allBoxes, newBprBox)
+
+                    if enable_side_line
+                        int line_x_coord = dynamic_right_edge
+                        color actual_sl_color = color.gray 
+                        if str.contains(bprIdentifierOriginTF, "5M")
+                            actual_sl_color := item_type == 1 ? input_sl_color_5M_bull : input_sl_color_5M_bear
+                        else if str.contains(bprIdentifierOriginTF, "15M")
+                            actual_sl_color := item_type == 1 ? input_sl_color_15M_bull : input_sl_color_15M_bear
+                        else if str.contains(bprIdentifierOriginTF, "1H")
+                            actual_sl_color := item_type == 1 ? input_sl_color_1H_bull : input_sl_color_1H_bear
+                        
+                        newLine = line.new(x1=line_x_coord, y1=item_bottom, x2=line_x_coord, y2=item_top, xloc=xloc.bar_time, extend=extend.none, color=actual_sl_color, style=side_line_style, width=side_line_width)
+                        array.push(g_allSideLines, newLine)
+                    
+                    string current_label_text_input = input_bpr_label_text_5M 
+                    string current_pos_str_input = input_label_position_5M 
+                    string current_size_str_input = input_label_size_5M
+
+                    if str.contains(bprIdentifierOriginTF, "1H")
+                        current_label_text_input := input_bpr_label_text_1H
+                        current_pos_str_input := input_label_position_1H
+                        current_size_str_input := input_label_size_1H
+                    else if str.contains(bprIdentifierOriginTF, "15M")
+                        current_label_text_input := input_bpr_label_text_15M
+                        current_pos_str_input := input_label_position_15M
+                        current_size_str_input := input_label_size_15M
+                    
+                    int actual_label_x = dynamic_right_edge 
+                    string actual_text_align = text.align_right
+                    if current_pos_str_input == "Izquierda"
+                        actual_label_x := box_left_time
+                        actual_text_align := text.align_left
+                    else if current_pos_str_input == "Derecha" 
+                        actual_label_x := dynamic_right_edge
+                        actual_text_align := text.align_right
+                    else if current_pos_str_input == "Centro"
+                        actual_label_x := box_left_time + (dynamic_right_edge - box_left_time) / 2
+                        actual_text_align := text.align_center
+                    
+                    string actual_label_size = size.tiny 
+                    if current_size_str_input == "Small"
+                        actual_label_size := size.small 
+                    else if current_size_str_input == "Normal"
+                        actual_label_size := size.normal 
+                    else if current_size_str_input == "Large"
+                        actual_label_size := size.large 
+                    else if current_size_str_input == "Huge"
+                        actual_label_size := size.huge
+
+                    string label_to_display = LEADING_SPACES + current_label_text_input
+                    newLabel = label.new(x = actual_label_x, y = (item_top + item_bottom) / 2, text = label_to_display, xloc = xloc.bar_time, yloc = yloc.price, color = color(na), style = label.style_none, textcolor = color.new(color.white, 0), size = actual_label_size, textalign = actual_text_align)
+                    array.push(g_allLabels, newLabel)
+
+
+if barstate.islast or barstate.ishistory
+    for b_id in g_allBoxes 
+        box.delete(b_id)
+    array.clear(g_allBoxes)
+    for l_id in g_allLabels 
+        label.delete(l_id) 
+    array.clear(g_allLabels)
+    for sl_id in g_allSideLines
+        line.delete(sl_id)
+    array.clear(g_allSideLines)
+
+    if enable_1M_FVG
+        drawFVGSet(LATCHED_g_fvgTops_1M, LATCHED_g_fvgBottoms_1M, LATCHED_g_fvgTimes_1M, LATCHED_g_fvgTypes_1M, universalBullColor, universalBearColor, "1", nItemsToDisplay_1M, "FVG 1M")
+    if enable_5M_FVG
+        drawFVGSet(LATCHED_g_fvgTops_5M, LATCHED_g_fvgBottoms_5M, LATCHED_g_fvgTimes_5M, LATCHED_g_fvgTypes_5M, universalBullColor, universalBearColor, "5", nItemsToDisplay, "FVG 5M")
+        if enable_BPRs_5M
+            drawBPRSet(LATCHED_g_bprTops_5M, LATCHED_g_bprBottoms_5M, LATCHED_g_bprTimes_5M, LATCHED_g_bprTypes_5M, input_bpr_bull_color, input_bpr_bear_color, "5", nItemsToDisplay, "FVG 5M") 
+    if enable_15M_FVG
+        drawFVGSet(LATCHED_g_fvgTops_15M, LATCHED_g_fvgBottoms_15M, LATCHED_g_fvgTimes_15M, LATCHED_g_fvgTypes_15M, universalBullColor, universalBearColor, "15", nItemsToDisplay, "FVG 15M")
+        if enable_BPRs_15M
+            drawBPRSet(LATCHED_g_bprTops_15M, LATCHED_g_bprBottoms_15M, LATCHED_g_bprTimes_15M, LATCHED_g_bprTypes_15M, input_bpr_bull_color, input_bpr_bear_color, "15", nItemsToDisplay, "FVG 15M")
+    if enable_1H_FVG
+        drawFVGSet(LATCHED_g_fvgTops_1H, LATCHED_g_fvgBottoms_1H, LATCHED_g_fvgTimes_1H, LATCHED_g_fvgTypes_1H, universalBullColor, universalBearColor, "60", nItemsToDisplay, "FVG 1H")
+        if enable_BPRs_1H
+            drawBPRSet(LATCHED_g_bprTops_1H, LATCHED_g_bprBottoms_1H, LATCHED_g_bprTimes_1H, LATCHED_g_bprTypes_1H, input_bpr_bull_color, input_bpr_bear_color, "60", nItemsToDisplay, "FVG 1H")
