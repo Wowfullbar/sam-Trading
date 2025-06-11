@@ -6,7 +6,7 @@ if not array.includes(array.from("1", "5"), timeframe.period)
 
 max_display = input.int(30, "Max Elementos", minval=1, maxval=500)
 fvg_duration = input.int(20, "Duración FVG (min)", minval=5, maxval=100)
-confluence_timeout = input.int(30, "Tiempo límite confluencia (min)", minval=10, maxval=120)
+confluence_timeout = input.int(30, "Tiempo límite confluencia (min)", minval=10, maxval=900)
 stop_loss_multiplier = input.float(1.0, "Multiplicador Stop Loss", minval=0.1, maxval=5.0, step=0.1)
 tp_multiplier = input.float(1.0, "Multiplicador TP (x Stop Loss)", minval=0.5, maxval=5.0, step=0.5)
 risk_input = input.float(5.0, "Riesgo por Operación", minval=0.1, maxval=100.0, step=0.1)
@@ -95,22 +95,19 @@ remove_fvg(index) =>
 // Función para verificar invalidación de FVGs
 check_fvg_invalidation() =>
     if array.size(fvg_tops) > 0
+        fvg_duration_bars = get_bars_from_minutes(fvg_duration)
+        body_high = math.max(open, close)
+        body_low = math.min(open, close)
         for i = 0 to array.size(fvg_tops) - 1
-            if not array.get(fvg_invalidated, i)  // Solo verificar FVGs no invalidados
-                fvg_top = array.get(fvg_tops, i)
-                fvg_bottom = array.get(fvg_bottoms, i)
-                is_bullish_fvg = array.get(fvg_bullish, i)
-                
-                // Un FVG bullish se invalida si el precio cierra por debajo del bottom
-                // Un FVG bearish se invalida si el precio cierra por encima del top
-                invalidated = false
-                if is_bullish_fvg and close < fvg_bottom
-                    invalidated := true
-                else if not is_bullish_fvg and close > fvg_top
-                    invalidated := true
-                
-                if invalidated
-                    array.set(fvg_invalidated, i, true)
+            if not array.get(fvg_invalidated, i)
+                fvg_age = bar_index - array.get(fvg_bar_indices, i)
+                if fvg_age <= fvg_duration_bars
+                    fvg_top = array.get(fvg_tops, i)
+                    fvg_bottom = array.get(fvg_bottoms, i)
+                    // El FVG se invalida solo si el cuerpo de la vela rellena totalmente la zona
+                    invalidated = body_high >= fvg_top and body_low <= fvg_bottom
+                    if invalidated
+                        array.set(fvg_invalidated, i, true)
 
 clean_fvgs() =>
     if array.size(fvg_tops) > 0
@@ -364,10 +361,16 @@ if (pending_buy or pending_sell) and confluence_start_bar > 0
         pending_buy := false
         pending_sell := false
 
+// Si la confluencia deja de existir, cancelar señales pendientes
+if not conf_detected
+    pending_buy := false
+    pending_sell := false
+
 if conf_detected and bar_index - last_confluence_bar > 10
     confluence_counter += 1
     fvg_duration_bars = get_bars_from_minutes(fvg_duration)
-    confluence_box = box.new(bar_index - 1, full_zone_top, bar_index + fvg_duration_bars, full_zone_bottom, border_color=color.purple, bgcolor=color.new(color.purple, 85), border_width=2)
+    box_color = conf_type == "ALCISTA" ? color.green : color.red
+    confluence_box = box.new(bar_index - 1, full_zone_top, bar_index + fvg_duration_bars, full_zone_bottom, border_color=box_color, bgcolor=color.new(box_color, 85), border_width=2)
     array.push(confluence_zones, confluence_box)
     confluence_zone_top := full_zone_top
     confluence_zone_bottom := full_zone_bottom
