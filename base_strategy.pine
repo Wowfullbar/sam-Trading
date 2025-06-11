@@ -1,0 +1,17 @@
+//@version=6
+strategy("Base Strategy", overlay=true)
+
+fast_length = input.int(10, "Fast MA Length")
+slow_length = input.int(30, "Slow MA Length")
+
+fast_ma = ta.sma(close, fast_length)
+slow_ma = ta.sma(close, slow_length)
+
+if ta.crossover(fast_ma, slow_ma)
+    strategy.entry("Long", strategy.long)
+
+if ta.crossunder(fast_ma, slow_ma)
+    strategy.entry("Short", strategy.short)
+
+plot(fast_ma, color=color.blue)
+plot(slow_ma, color=color.orange)
