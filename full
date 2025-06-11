@@ -95,22 +95,19 @@ remove_fvg(index) =>
 // Función para verificar invalidación de FVGs
 check_fvg_invalidation() =>
     if array.size(fvg_tops) > 0
+        fvg_duration_bars = get_bars_from_minutes(fvg_duration)
         for i = 0 to array.size(fvg_tops) - 1
-            if not array.get(fvg_invalidated, i)  // Solo verificar FVGs no invalidados
-                fvg_top = array.get(fvg_tops, i)
-                fvg_bottom = array.get(fvg_bottoms, i)
-                is_bullish_fvg = array.get(fvg_bullish, i)
-                
-                // Un FVG bullish se invalida si el precio cierra por debajo del bottom
-                // Un FVG bearish se invalida si el precio cierra por encima del top
-                invalidated = false
-                if is_bullish_fvg and close < fvg_bottom
-                    invalidated := true
-                else if not is_bullish_fvg and close > fvg_top
-                    invalidated := true
-                
-                if invalidated
-                    array.set(fvg_invalidated, i, true)
+            if not array.get(fvg_invalidated, i)
+                fvg_age = bar_index - array.get(fvg_bar_indices, i)
+                if fvg_age <= fvg_duration_bars  // Solo FVGs dentro de la duración
+                    fvg_top = array.get(fvg_tops, i)
+                    fvg_bottom = array.get(fvg_bottoms, i)
+                    body_high = math.max(open, close)
+                    body_low = math.min(open, close)
+
+                    // Invalidar solo si el cuerpo de la vela rellena el FVG
+                    if body_high >= fvg_bottom and body_low <= fvg_top
+                        array.set(fvg_invalidated, i, true)
 
 clean_fvgs() =>
     if array.size(fvg_tops) > 0
@@ -230,6 +227,80 @@ update_boxes_extension() =>
         box.set_right(latest_tp, bar_index)
         box.set_right(latest_sl, bar_index)
 
+// Elimina una zona de confluencia y sus elementos asociados
+remove_confluence(index) =>
+    if index < array.size(confluence_zones)
+        zone_box = array.get(confluence_zones, index)
+        zone_top = box.get_top(zone_box)
+        zone_bottom = box.get_bottom(zone_box)
+        box.delete(zone_box)
+        array.remove(confluence_zones, index)
+
+        // Borrar cajas de FVG asociadas
+        start_idx = 0
+        if index > 0
+            for i = 0 to index - 1
+                start_idx += array.get(confluence_fvg_counts, i)
+        fvgs_to_remove = array.get(confluence_fvg_counts, index)
+        for i = 0 to fvgs_to_remove - 1
+            if start_idx < array.size(fvg_boxes)
+                box.delete(array.get(fvg_boxes, start_idx))
+                array.remove(fvg_boxes, start_idx)
+        array.remove(confluence_fvg_counts, index)
+
+        // Borrar etiqueta de MS correspondiente
+        if index < array.size(ms_labels)
+            ms_lbl = array.get(ms_labels, index)
+            ms_lbl_bar = label.get_x(ms_lbl)
+            label.delete(ms_lbl)
+            array.remove(ms_labels, index)
+            if ms_bar == ms_lbl_bar
+                ms_level := na
+                ms_bar := 0
+                pending_buy := false
+                pending_sell := false
+        if not na(confluence_zone_top) and not na(confluence_zone_bottom)
+            diff_top = math.abs(confluence_zone_top - zone_top)
+            diff_bot = math.abs(confluence_zone_bottom - zone_bottom)
+            if diff_top <= syminfo.mintick and diff_bot <= syminfo.mintick
+                confluence_zone_top := na
+                confluence_zone_bottom := na
+
+// Revisa que cada zona de confluencia siga cumpliendo las condiciones
+check_confluence_validity() =>
+    if array.size(confluence_zones) > 0
+        fvg_duration_bars = get_bars_from_minutes(fvg_duration)
+        for i = array.size(confluence_zones) - 1 to 0
+            zone = array.get(confluence_zones, i)
+            zone_top = box.get_top(zone)
+            zone_bottom = box.get_bottom(zone)
+            tf_5m = 0
+            tf_15m = 0
+            tf_1h = 0
+            bull_count = 0
+            bear_count = 0
+            for j = 0 to array.size(fvg_tops) - 1
+                if not array.get(fvg_invalidated, j)
+                    fvg_age = bar_index - array.get(fvg_bar_indices, j)
+                    if fvg_age <= fvg_duration_bars
+                        fvg_top = array.get(fvg_tops, j)
+                        fvg_bottom = array.get(fvg_bottoms, j)
+                        tf = array.get(fvg_timeframes, j)
+                        if zone_top >= fvg_bottom and zone_bottom <= fvg_top
+                            tf_5m := tf == "5min" ? tf_5m + 1 : tf_5m
+                            tf_15m := tf == "15min" ? tf_15m + 1 : tf_15m
+                            tf_1h := tf == "1H" ? tf_1h + 1 : tf_1h
+                            if array.get(fvg_bullish, j)
+                                bull_count += 1
+                            else
+                                bear_count += 1
+            total_fvgs = tf_5m + tf_15m + tf_1h
+            tfs_touching = (tf_5m > 0 ? 1 : 0) + (tf_15m > 0 ? 1 : 0) + (tf_1h > 0 ? 1 : 0)
+            conf_type = bull_count > bear_count ? "ALCISTA" : bear_count > bull_count ? "BAJISTA" : "MIXTA"
+            conf_valid = tfs_touching >= 2 and total_fvgs >= 2 and conf_type != "MIXTA"
+            if not conf_valid
+                remove_confluence(i)
+
 // Función para encontrar el swing anterior al swing dado
 find_previous_swing(target_swing_bar, is_looking_for_high) =>
     var float previous_swing_price = na
@@ -313,6 +384,9 @@ if is_1m
 check_fvg_invalidation()
 
 clean_fvgs()
+
+// Revalidar zonas de confluencia luego de limpiar FVGs
+check_confluence_validity()
 
 conf_detected = false
 conf_type = ""
