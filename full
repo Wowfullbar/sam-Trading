@@ -441,7 +441,8 @@ if (pending_buy or pending_sell) and confluence_start_bar > 0
 if conf_detected and bar_index - last_confluence_bar > 10
     confluence_counter += 1
     fvg_duration_bars = get_bars_from_minutes(fvg_duration)
-    confluence_box = box.new(bar_index - 1, full_zone_top, bar_index + fvg_duration_bars, full_zone_bottom, border_color=color.purple, bgcolor=color.new(color.purple, 85), border_width=2)
+    box_color = conf_type == "ALCISTA" ? color.green : color.red
+    confluence_box = box.new(bar_index - 1, full_zone_top, bar_index + fvg_duration_bars, full_zone_bottom, border_color=box_color, bgcolor=color.new(box_color, 85), border_width=2)
     array.push(confluence_zones, confluence_box)
     confluence_zone_top := full_zone_top
     confluence_zone_bottom := full_zone_bottom
