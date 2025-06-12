@@ -108,8 +108,8 @@ check_fvg_invalidation() =>
                 if fvg_age <= fvg_duration_bars
                     fvg_top = array.get(fvg_tops, i)
                     fvg_bottom = array.get(fvg_bottoms, i)
-                    // El FVG se invalida solo si el cuerpo de la vela rellena totalmente la zona
-                    invalidated = body_high >= fvg_top and body_low <= fvg_bottom
+                    // El FVG se invalida si el cuerpo de cualquier vela cruza la zona
+                    invalidated = body_high >= fvg_bottom and body_low <= fvg_top
                     if invalidated
                         array.set(fvg_invalidated, i, true)
 
