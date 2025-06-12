@@ -254,8 +254,12 @@ check_confluence_validity() =>
     zone_count = array.size(confluence_zones)
     inv_count = array.size(confluence_invalidated)
     if zone_count > 0
+        // Asegura que la lista de invalidaciones tenga la misma longitud que las zonas
+        if inv_count < zone_count
+            for k = inv_count to zone_count - 1
+                array.push(confluence_invalidated, false)
         for i = 0 to zone_count - 1
-            is_invalid = i < inv_count ? array.get(confluence_invalidated, i) : false
+            is_invalid = array.get(confluence_invalidated, i)
             if not is_invalid
                 zone_box = array.get(confluence_zones, i)
                 zone_top = box.get_top(zone_box)
