@@ -112,10 +112,6 @@ check_fvg_invalidation() =>
                     invalidated = body_high >= fvg_top and body_low <= fvg_bottom
                     if invalidated
                         array.set(fvg_invalidated, i, true)
-                        fvg_box = array.get(fvg_box_refs, i)
-                        if not na(fvg_box)
-                            box.set_bgcolor(fvg_box, color.white)
-                            box.set_border_color(fvg_box, color.white)
 
 clean_fvgs() =>
     if array.size(fvg_tops) > 0
@@ -391,6 +387,11 @@ if not conf_detected
             box.set_bgcolor(last_box, color.new(color.white, 85))
             box.set_border_color(last_box, color.white)
             array.set(confluence_invalidated, last_idx, true)
+
+// Si la confluencia deja de existir, cancelar señales pendientes
+if not conf_detected
+    pending_buy := false
+    pending_sell := false
 
 if conf_detected and bar_index - last_confluence_bar > 10
     confluence_counter += 1
