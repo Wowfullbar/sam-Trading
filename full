@@ -11,6 +11,8 @@ stop_loss_multiplier = input.float(1.0, "Multiplicador Stop Loss", minval=0.1, m
 tp_multiplier = input.float(1.0, "Multiplicador TP (x Stop Loss)", minval=0.5, maxval=5.0, step=0.5)
 risk_input = input.float(5.0, "Riesgo por Operación", minval=0.1, maxval=100.0, step=0.1)
 risk_amount = risk_input * 10
+invalid_bearish_color = input.color(color.orange, "Color FVG bajista invalidado")
+invalid_bullish_color = input.color(color.white, "Color FVG alcista invalidado")
 
 current_tf = timeframe.period
 higher_tf = current_tf == "1" ? "5" : "15"
@@ -108,10 +110,16 @@ check_fvg_invalidation() =>
                 if fvg_age <= fvg_duration_bars
                     fvg_top = array.get(fvg_tops, i)
                     fvg_bottom = array.get(fvg_bottoms, i)
-                    // El FVG se invalida solo si el cuerpo de la vela rellena totalmente la zona
-                    invalidated = body_high >= fvg_top and body_low <= fvg_bottom
+                    // El FVG se invalida si el cuerpo de cualquier vela cruza la zona
+                    invalidated = body_high >= fvg_bottom and body_low <= fvg_top
                     if invalidated
                         array.set(fvg_invalidated, i, true)
+                        box_ref = array.get(fvg_box_refs, i)
+                        if not na(box_ref)
+                            is_bullish_fvg = array.get(fvg_bullish, i)
+                            color_invalid = is_bullish_fvg ? invalid_bullish_color : invalid_bearish_color
+                            box.set_bgcolor(box_ref, color.new(color_invalid, 85))
+                            box.set_border_color(box_ref, color.new(color_invalid, 100))
 
 clean_fvgs() =>
     if array.size(fvg_tops) > 0
@@ -121,9 +129,9 @@ clean_fvgs() =>
             fvg_age = bar_index - array.get(fvg_bar_indices, i)
             tf = array.get(fvg_timeframes, i)
             is_invalidated = array.get(fvg_invalidated, i)
-            
-            // Remover FVGs por tiempo O por invalidación
-            if fvg_age > fvg_duration_bars or is_invalidated
+
+            // Remover FVGs solo por tiempo
+            if fvg_age > fvg_duration_bars
                 remove_fvg(i)
             else if tf == "1min"
                 count_1m += 1
