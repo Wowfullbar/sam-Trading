@@ -255,7 +255,8 @@ check_confluence_validity() =>
     if zone_count == 0
         return
     for i = 0 to zone_count - 1
-        if i < inv_count and not array.get(confluence_invalidated, i)
+        is_invalid = i < inv_count ? array.get(confluence_invalidated, i) : false
+        if not is_invalid
             zone_box = array.get(confluence_zones, i)
             zone_top = box.get_top(zone_box)
             zone_bottom = box.get_bottom(zone_box)
@@ -264,8 +265,8 @@ check_confluence_validity() =>
             for j = 0 to array.size(fvg_tops) - 1
                 fvg_age = bar_index - array.get(fvg_bar_indices, j)
                 tf = array.get(fvg_timeframes, j)
-                is_invalid = array.get(fvg_invalidated, j)
-                if fvg_age <= fvg_duration_bars and tf != "1min" and not is_invalid
+                is_fvg_invalid = array.get(fvg_invalidated, j)
+                if fvg_age <= fvg_duration_bars and tf != "1min" and not is_fvg_invalid
                     fvg_top = array.get(fvg_tops, j)
                     fvg_bottom = array.get(fvg_bottoms, j)
                     if fvg_top >= zone_top and fvg_bottom <= zone_bottom
@@ -274,7 +275,8 @@ check_confluence_validity() =>
             if array.size(valid_tfs) < 2
                 box.set_bgcolor(zone_box, color.new(invalid_conf_color, 85))
                 box.set_border_color(zone_box, invalid_conf_color)
-                array.set(confluence_invalidated, i, true)
+                if i < inv_count
+                    array.set(confluence_invalidated, i, true)
 
 // Función para encontrar el swing anterior al swing dado
 find_previous_swing(target_swing_bar, is_looking_for_high) =>
