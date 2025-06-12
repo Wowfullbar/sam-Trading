@@ -75,6 +75,7 @@ var bool position_active = false
 var float confluence_zone_top = na
 var float confluence_zone_bottom = na
 var int confluence_start_bar = 0
+var bool confluence_expired = false
 
 var array<float> swing_highs_1m = array.new<float>()
 var array<float> swing_lows_1m = array.new<float>()
@@ -252,26 +253,25 @@ update_boxes_extension() =>
 check_confluence_validity() =>
     zone_count = array.size(confluence_zones)
     inv_count = array.size(confluence_invalidated)
-    if zone_count == 0
-        return
-    for i = 0 to zone_count - 1
-        is_invalid = i < inv_count ? array.get(confluence_invalidated, i) : false
-        if not is_invalid
-            zone_box = array.get(confluence_zones, i)
-            zone_top = box.get_top(zone_box)
-            zone_bottom = box.get_bottom(zone_box)
-            valid_tfs = array.new<string>()
-            fvg_duration_bars = get_bars_from_minutes(fvg_duration)
-            for j = 0 to array.size(fvg_tops) - 1
-                fvg_age = bar_index - array.get(fvg_bar_indices, j)
-                tf = array.get(fvg_timeframes, j)
-                is_fvg_invalid = array.get(fvg_invalidated, j)
-                if fvg_age <= fvg_duration_bars and tf != "1min" and not is_fvg_invalid
-                    fvg_top = array.get(fvg_tops, j)
-                    fvg_bottom = array.get(fvg_bottoms, j)
-                    if fvg_top >= zone_top and fvg_bottom <= zone_bottom
-                        if not array.includes(valid_tfs, tf)
-                            array.push(valid_tfs, tf)
+    if zone_count > 0
+        for i = 0 to zone_count - 1
+            is_invalid = i < inv_count ? array.get(confluence_invalidated, i) : false
+            if not is_invalid
+                zone_box = array.get(confluence_zones, i)
+                zone_top = box.get_top(zone_box)
+                zone_bottom = box.get_bottom(zone_box)
+                valid_tfs = array.new<string>()
+                fvg_duration_bars = get_bars_from_minutes(fvg_duration)
+                for j = 0 to array.size(fvg_tops) - 1
+                    fvg_age = bar_index - array.get(fvg_bar_indices, j)
+                    tf = array.get(fvg_timeframes, j)
+                    is_fvg_invalid = array.get(fvg_invalidated, j)
+                    if fvg_age <= fvg_duration_bars and tf != "1min" and not is_fvg_invalid
+                        fvg_top = array.get(fvg_tops, j)
+                        fvg_bottom = array.get(fvg_bottoms, j)
+                        if fvg_top >= zone_top and fvg_bottom <= zone_bottom
+                            if not array.includes(valid_tfs, tf)
+                                array.push(valid_tfs, tf)
             if array.size(valid_tfs) < 2
                 box.set_bgcolor(zone_box, color.new(invalid_conf_color, 85))
                 box.set_border_color(zone_box, invalid_conf_color)
@@ -406,12 +406,12 @@ buy_signal := false
 sell_signal := false
 
 // Verificar si la confluencia ha expirado
-confluence_expired = false
+confluence_expired := false
 if (pending_buy or pending_sell) and confluence_start_bar > 0
     confluence_age_bars = bar_index - confluence_start_bar
     confluence_timeout_bars = get_bars_from_minutes(confluence_timeout)
     if confluence_age_bars > confluence_timeout_bars
-        confluence_expired = true
+        confluence_expired := true
         pending_buy := false
         pending_sell := false
         if array.size(confluence_zones) > 0
