@@ -250,8 +250,12 @@ update_boxes_extension() =>
 // menos dos FVGs de temporalidades distintas contienen la zona. Si
 // no es así, se pinta la caja de blanco para indicar invalidez.
 check_confluence_validity() =>
-    for i = 0 to array.size(confluence_zones) - 1
-        if not array.get(confluence_invalidated, i)
+    zone_count = array.size(confluence_zones)
+    inv_count = array.size(confluence_invalidated)
+    if zone_count == 0
+        return
+    for i = 0 to zone_count - 1
+        if i < inv_count and not array.get(confluence_invalidated, i)
             zone_box = array.get(confluence_zones, i)
             zone_top = box.get_top(zone_box)
             zone_bottom = box.get_bottom(zone_box)
