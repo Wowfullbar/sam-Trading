@@ -11,6 +11,11 @@ stop_loss_multiplier = input.float(1.0, "Multiplicador Stop Loss", minval=0.1, m
 tp_multiplier = input.float(1.0, "Multiplicador TP (x Stop Loss)", minval=0.5, maxval=7.0, step=0.5)
 risk_input = input.float(5.0, "Riesgo por Operación", minval=0.1, maxval=100.0, step=0.1)
 risk_amount = risk_input * 10
+invalid_bearish_color = input.color(color.orange, "Color FVG bajista invalidado")
+invalid_bullish_color = input.color(color.white, "Color FVG alcista invalidado")
+bullish_conf_color = input.color(color.green, "Color Confluencia Alcista")
+bearish_conf_color = input.color(color.red, "Color Confluencia Bajista")
+invalid_conf_color = input.color(color.white, "Color Confluencia Invalidada")
 
 current_tf = timeframe.period
 higher_tf = current_tf == "1" ? "5" : "15"
@@ -112,6 +117,12 @@ check_fvg_invalidation() =>
                     invalidated = body_high >= fvg_bottom and body_low <= fvg_top
                     if invalidated
                         array.set(fvg_invalidated, i, true)
+                        box_ref = array.get(fvg_box_refs, i)
+                        if not na(box_ref)
+                            is_bullish_fvg = array.get(fvg_bullish, i)
+                            color_invalid = is_bullish_fvg ? invalid_bullish_color : invalid_bearish_color
+                            box.set_bgcolor(box_ref, color.new(color_invalid, 85))
+                            box.set_border_color(box_ref, color.new(color_invalid, 100))
 
 clean_fvgs() =>
     if array.size(fvg_tops) > 0
@@ -121,9 +132,9 @@ clean_fvgs() =>
             fvg_age = bar_index - array.get(fvg_bar_indices, i)
             tf = array.get(fvg_timeframes, i)
             is_invalidated = array.get(fvg_invalidated, i)
-            
-            // Remover FVGs por tiempo O por invalidación
-            if fvg_age > fvg_duration_bars or is_invalidated
+
+            // Remover FVGs solo por tiempo
+            if fvg_age > fvg_duration_bars
                 remove_fvg(i)
             else if tf == "1min"
                 count_1m += 1
@@ -372,21 +383,9 @@ if (pending_buy or pending_sell) and confluence_start_bar > 0
             last_idx = array.size(confluence_zones) - 1
             if not array.get(confluence_invalidated, last_idx)
                 last_box = array.get(confluence_zones, last_idx)
-                box.set_bgcolor(last_box, color.new(color.white, 85))
-                box.set_border_color(last_box, color.white)
+                box.set_bgcolor(last_box, color.new(invalid_conf_color, 85))
+                box.set_border_color(last_box, invalid_conf_color)
                 array.set(confluence_invalidated, last_idx, true)
-
-// Si la confluencia deja de existir, cancelar señales pendientes
-if not conf_detected
-    pending_buy := false
-    pending_sell := false
-    if array.size(confluence_zones) > 0
-        last_idx = array.size(confluence_zones) - 1
-        if not array.get(confluence_invalidated, last_idx)
-            last_box = array.get(confluence_zones, last_idx)
-            box.set_bgcolor(last_box, color.new(color.white, 85))
-            box.set_border_color(last_box, color.white)
-            array.set(confluence_invalidated, last_idx, true)
 
 // Si la confluencia deja de existir, cancelar señales pendientes
 if not conf_detected
@@ -396,7 +395,7 @@ if not conf_detected
 if conf_detected and bar_index - last_confluence_bar > 10
     confluence_counter += 1
     fvg_duration_bars = get_bars_from_minutes(fvg_duration)
-    box_color = conf_type == "ALCISTA" ? color.green : color.red
+    box_color = conf_type == "ALCISTA" ? bullish_conf_color : bearish_conf_color
     confluence_box = box.new(bar_index - 1, full_zone_top, bar_index + fvg_duration_bars, full_zone_bottom, border_color=box_color, bgcolor=color.new(box_color, 85), border_width=2)
     array.push(confluence_zones, confluence_box)
     array.push(confluence_invalidated, false)
