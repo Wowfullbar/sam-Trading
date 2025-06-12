@@ -246,6 +246,32 @@ update_boxes_extension() =>
         box.set_right(latest_tp, bar_index)
         box.set_right(latest_sl, bar_index)
 
+// Verifica si cada confluencia sigue cumpliendo la regla de que al
+// menos dos FVGs de temporalidades distintas contienen la zona. Si
+// no es así, se pinta la caja de blanco para indicar invalidez.
+check_confluence_validity() =>
+    for i = 0 to array.size(confluence_zones) - 1
+        if not array.get(confluence_invalidated, i)
+            zone_box = array.get(confluence_zones, i)
+            zone_top = box.get_top(zone_box)
+            zone_bottom = box.get_bottom(zone_box)
+            valid_tfs = array.new<string>()
+            fvg_duration_bars = get_bars_from_minutes(fvg_duration)
+            for j = 0 to array.size(fvg_tops) - 1
+                fvg_age = bar_index - array.get(fvg_bar_indices, j)
+                tf = array.get(fvg_timeframes, j)
+                is_invalid = array.get(fvg_invalidated, j)
+                if fvg_age <= fvg_duration_bars and tf != "1min" and not is_invalid
+                    fvg_top = array.get(fvg_tops, j)
+                    fvg_bottom = array.get(fvg_bottoms, j)
+                    if fvg_top >= zone_top and fvg_bottom <= zone_bottom
+                        if not array.includes(valid_tfs, tf)
+                            array.push(valid_tfs, tf)
+            if array.size(valid_tfs) < 2
+                box.set_bgcolor(zone_box, color.new(invalid_conf_color, 85))
+                box.set_border_color(zone_box, invalid_conf_color)
+                array.set(confluence_invalidated, i, true)
+
 // Función para encontrar el swing anterior al swing dado
 find_previous_swing(target_swing_bar, is_looking_for_high) =>
     var float previous_swing_price = na
@@ -329,6 +355,9 @@ if is_1m
 check_fvg_invalidation()
 
 clean_fvgs()
+
+// Revalidar cada zona de confluencia existente
+check_confluence_validity()
 
 conf_detected = false
 conf_type = ""
