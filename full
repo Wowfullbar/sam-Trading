@@ -276,11 +276,11 @@ check_confluence_validity() =>
                         if fvg_top >= zone_top and fvg_bottom <= zone_bottom
                             if not array.includes(valid_tfs, tf)
                                 array.push(valid_tfs, tf)
-            if array.size(valid_tfs) < 2
-                box.set_bgcolor(zone_box, color.new(invalid_conf_color, 85))
-                box.set_border_color(zone_box, invalid_conf_color)
-                if i < inv_count
-                    array.set(confluence_invalidated, i, true)
+                if array.size(valid_tfs) < 2
+                    box.set_bgcolor(zone_box, color.new(invalid_conf_color, 85))
+                    box.set_border_color(zone_box, invalid_conf_color)
+                    if i < inv_count
+                        array.set(confluence_invalidated, i, true)
 
 // Función para encontrar el swing anterior al swing dado
 find_previous_swing(target_swing_bar, is_looking_for_high) =>
