@@ -43,10 +43,12 @@ var fvg_bullish = array.new<bool>()
 var fvg_timeframes = array.new<string>()
 var fvg_bar_indices = array.new<int>()
 var fvg_invalidated = array.new<bool>()
+var fvg_box_refs = array.new<box>()
 var confluence_zones = array.new<box>()
 var fvg_boxes = array.new<box>()
 var ms_labels = array.new<label>()
 var confluence_fvg_counts = array.new<int>()
+var confluence_invalidated = array.new<bool>()
 var tp_boxes = array.new<box>()
 var sl_boxes = array.new<box>()
 
@@ -83,6 +85,7 @@ create_fvg(is_bullish, top, bottom, tf_text) =>
     array.push(fvg_timeframes, tf_text)
     array.push(fvg_bar_indices, bar_index)
     array.push(fvg_invalidated, false)
+    array.push(fvg_box_refs, na)
 
 remove_fvg(index) =>
     array.remove(fvg_tops, index)
@@ -91,6 +94,7 @@ remove_fvg(index) =>
     array.remove(fvg_timeframes, index)
     array.remove(fvg_bar_indices, index)
     array.remove(fvg_invalidated, index)
+    array.remove(fvg_box_refs, index)
 
 // Función para verificar invalidación de FVGs
 check_fvg_invalidation() =>
@@ -133,6 +137,7 @@ clean_fvgs() =>
                     array.remove(fvg_timeframes, i)
                     array.remove(fvg_bar_indices, i)
                     array.remove(fvg_invalidated, i)
+                    array.remove(fvg_box_refs, i)
                     removed += 1
                     break
 
@@ -188,6 +193,7 @@ create_fvg_boxes(participating_indices, conf_type) =>
         fvg_duration_bars = get_bars_from_minutes(fvg_duration)
         fvg_box = box.new(fvg_bar - 2, fvg_top, fvg_bar + fvg_duration_bars - 2, fvg_bottom, border_color=color.new(box_color, 100), bgcolor=color.new(box_color, 85), border_width=0, text=tf_label, text_color=color.white, text_size=text_size)
         array.push(fvg_boxes, fvg_box)
+        array.set(fvg_box_refs, index, fvg_box)
 
 clean_old_zones() =>
     while array.size(confluence_zones) > max_display
@@ -198,6 +204,8 @@ clean_old_zones() =>
                 for i = 1 to fvgs_to_remove
                     if array.size(fvg_boxes) > 0
                         box.delete(array.shift(fvg_boxes))
+            if array.size(confluence_invalidated) > 0
+                array.shift(confluence_invalidated)
     while array.size(ms_labels) > max_display
         if array.size(ms_labels) > 0
             label.delete(array.shift(ms_labels))
@@ -360,6 +368,25 @@ if (pending_buy or pending_sell) and confluence_start_bar > 0
         confluence_expired = true
         pending_buy := false
         pending_sell := false
+        if array.size(confluence_zones) > 0
+            last_idx = array.size(confluence_zones) - 1
+            if not array.get(confluence_invalidated, last_idx)
+                last_box = array.get(confluence_zones, last_idx)
+                box.set_bgcolor(last_box, color.new(color.white, 85))
+                box.set_border_color(last_box, color.white)
+                array.set(confluence_invalidated, last_idx, true)
+
+// Si la confluencia deja de existir, cancelar señales pendientes
+if not conf_detected
+    pending_buy := false
+    pending_sell := false
+    if array.size(confluence_zones) > 0
+        last_idx = array.size(confluence_zones) - 1
+        if not array.get(confluence_invalidated, last_idx)
+            last_box = array.get(confluence_zones, last_idx)
+            box.set_bgcolor(last_box, color.new(color.white, 85))
+            box.set_border_color(last_box, color.white)
+            array.set(confluence_invalidated, last_idx, true)
 
 // Si la confluencia deja de existir, cancelar señales pendientes
 if not conf_detected
@@ -372,6 +399,7 @@ if conf_detected and bar_index - last_confluence_bar > 10
     box_color = conf_type == "ALCISTA" ? color.green : color.red
     confluence_box = box.new(bar_index - 1, full_zone_top, bar_index + fvg_duration_bars, full_zone_bottom, border_color=box_color, bgcolor=color.new(box_color, 85), border_width=2)
     array.push(confluence_zones, confluence_box)
+    array.push(confluence_invalidated, false)
     confluence_zone_top := full_zone_top
     confluence_zone_bottom := full_zone_bottom
     confluence_start_bar := bar_index
