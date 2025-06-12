@@ -5,10 +5,10 @@ if not array.includes(array.from("1", "5"), timeframe.period)
     runtime.error("Solo funciona en 1 y 5 minutos")
 
 max_display = input.int(30, "Max Elementos", minval=1, maxval=500)
-fvg_duration = input.int(20, "Duración FVG (min)", minval=5, maxval=100)
+fvg_duration = input.int(20, "Duración FVG (min)", minval=5, maxval=1000)
 confluence_timeout = input.int(30, "Tiempo límite confluencia (min)", minval=10, maxval=900)
 stop_loss_multiplier = input.float(1.0, "Multiplicador Stop Loss", minval=0.1, maxval=5.0, step=0.1)
-tp_multiplier = input.float(1.0, "Multiplicador TP (x Stop Loss)", minval=0.5, maxval=5.0, step=0.5)
+tp_multiplier = input.float(1.0, "Multiplicador TP (x Stop Loss)", minval=0.5, maxval=7.0, step=0.5)
 risk_input = input.float(5.0, "Riesgo por Operación", minval=0.1, maxval=100.0, step=0.1)
 risk_amount = risk_input * 10
 
